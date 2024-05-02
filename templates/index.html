@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToDo App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.1.1/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        #addTaskForm button {
+            height: 40px;
+            /* Same height as the input field */
+            font-size: 1rem;
+            /* Same font size as the input field */
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 p-4 h-screen">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl"><i class="fa-solid fa-clipboard-list px-2"></i>ToDo List</h1>
+            <div id="clock" class="text-lg"></div>
+        </div>
+        <form id="addTaskForm" class="mb-4 flex justify-between items-center">
+            <input id="taskInput" type="text" placeholder="Pick up groceries..."
+                class="w-full rounded-lg border px-4 py-2">
+            <button type="submit" class="ml-2 bg-gray-300 text-white px-4 py-2 rounded-lg" disabled><i
+                    class="fa-solid fa-plus"></i></button>
+        </form>
+        <hr class="my-4">
+        <ul id="todoList">
+            {% for todo in todos %}
+            <li id="task{{ todo[0] }}"
+                class="flex justify-between items-center my-2   {% if todo[2] %}line-through{% endif %}">
+                <span>{{ todo[1] }}</span>
+                <div>
+                    <button onclick="removeTask({{ todo[0] }})" class="text-red-500 hover:text-red-700 px-2"><i
+                            class="fas fa-times"></i></button>
+                    {% if not todo[2] %}
+                    <button onclick="completeTask({{ todo[0] }})"
+                        class="bg-green-500 text-white px-2 py-1 rounded-lg ml-2"><i class="fas fa-check"></i></button>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        <hr class="my-4">
+        <p class="mt-4">Total tasks: <span id="totalTasks">{{ todos|length }}</span></p>
+        <p>Completed tasks: <span id="completedTasks">{{ todos|selectattr('2', 'equalto', True)|list|length }}</span>
+        </p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const formattedTime = now.toLocaleTimeString();
+            document.getElementById('clock').textContent = formattedTime;
+        }
+        updateTime(); // Update time immediately
+        setInterval(updateTime, 1000); // Update time every second
+
+        const taskInput = document.getElementById('taskInput');
+        const addButton = document.querySelector('#addTaskForm button');
+
+        taskInput.addEventListener('input', () => {
+            if (taskInput.value.trim() === '') {
+                addButton.disabled = true;
+                addButton.style.cursor = 'not-allowed';
+                // gray out the button
+                // remove class bg-blue-500
+                addButton.classList.remove('bg-blue-500');
+                addButton.classList.add('bg-gray-300');
+            } else {
+                addButton.disabled = false;
+                addButton.style.cursor = 'pointer';
+                // restore the button color
+                addButton.classList.remove('bg-gray-300');
+                addButton.classList.add('bg-blue-500');
+            }
+        });
+
+        async function addTask(event) {
+            event.preventDefault();
+            const task = taskInput.value.trim();
+            taskInput.value = '';
+
+            const response = await fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    task: task
+                })
+            });
+
+            const data = await response.json();
+            const todoList = document.getElementById('todoList');
+            todoList.innerHTML += `
+                <li id="task${data.task_id}" class="flex justify-between items-center">
+                    <span>${task}</span>
+                    <div>
+                        <button onclick="removeTask(${data.task_id})" class="text-red-500 hover:text-red-700 px-2"><i class="fas fa-times"></i></button>
+                        <button onclick="completeTask(${data.task_id})" class="bg-green-500 text-white px-2 py-1 rounded-lg ml-2"><i class="fas fa-check"></i></button>
+                    </div>
+                </li>
+            `;
+
+            const totalTasks = document.getElementById('totalTasks');
+            totalTasks.textContent = parseInt(totalTasks.textContent) + 1;
+        }
+
+        async function completeTask(taskId) {
+            const response = await fetch(`/complete/${taskId}`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+            const completedTask = document.getElementById(`task${taskId}`);
+            completedTask.classList.add('line-through');
+
+            const completedButton = completedTask.querySelector('.bg-green-500');
+            completedButton.style.display = 'none';
+
+            const completedTasks = document.getElementById('completedTasks');
+            completedTasks.textContent = parseInt(completedTasks.textContent) + 1;
+        }
+
+        async function removeTask(taskId) {
+            const response = await fetch(`/remove/${taskId}`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+            const removedTask = document.getElementById(`task${taskId}`);
+            removedTask.remove();
+
+            const totalTasks = document.getElementById('totalTasks');
+            totalTasks.textContent = parseInt(totalTasks.textContent) - 1;
+
+            if (removedTask.classList.contains('line-through')) {
+                const completedTasks = document.getElementById('completedTasks');
+                completedTasks.textContent = parseInt(completedTasks.textContent) - 1;
+            }
+        }
+
+        const addTaskForm = document.getElementById('addTaskForm');
+        addTaskForm.addEventListener('submit', addTask);
+    </script>
+</body>
+
+</html>
