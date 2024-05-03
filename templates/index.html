@@ -100,7 +100,7 @@
             const data = await response.json();
             const todoList = document.getElementById('todoList');
             todoList.innerHTML += `
-                <li id="task${data.task_id}" class="flex justify-between items-center">
+                <li id="task${data.task_id}" class="flex justify-between my-2 items-center">
                     <span>${task}</span>
                     <div>
                         <button onclick="removeTask(${data.task_id})" class="text-red-500 hover:text-red-700 px-2"><i class="fas fa-times"></i></button>
